@@ -42,9 +42,9 @@ device = torch.device( "cuda" if torch.cuda.is_available() else "cpu" )
 logging.info( f"Using device: {device}" )
 
 # ========== 🔹 Model Paths ==========
-MODEL_PATH = "models/bert_lstm_model.pth"
-SHAP_EXPLAINER_PATH = "models/shap_explainer.pkl"
-SHAP_VALUES_PATH = "models/shap_values.pkl"
+MODEL_PATH = "Backend/models/bert_lstm_model.pth"
+SHAP_EXPLAINER_PATH = "Backend/models/shap_explainer.pkl"
+SHAP_VALUES_PATH = "Backend/models/shap_values.pkl"
 
 # ========== 🔹 Load Model ==========
 if not os.path.exists( MODEL_PATH ) :
