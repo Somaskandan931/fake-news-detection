@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # ========== 🔹 Configuration ==========
-FASTAPI_URL = "http://127.0.0.1:8000"  # Change this if deploying backend
+FASTAPI_URL = "https://fake-news-detection-xqgi.onrender.com"  # Change this if deploying backend
 
 # ========== 🔹 Streamlit UI ==========
 st.set_page_config(page_title="Fake News Detection", page_icon="📰", layout="centered")
