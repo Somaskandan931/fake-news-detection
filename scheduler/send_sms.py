@@ -3,15 +3,15 @@ from pymongo import MongoClient
 import os
 
 # Load Twilio credentials from environment variables
-TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
+TWILIO_SID = os.getenv("ACff2a6eafe96c4ed11edebdc9d485bc51")
+TWILIO_AUTH_TOKEN = os.getenv("ea13afdab903ef5d98e064199009af6c")
+TWILIO_PHONE_NUMBER = os.getenv("+18576666048")
 
 # MongoDB connection
 MONGO_URI = "mongodb://localhost:27017/"
 client = MongoClient(MONGO_URI)
-db = client["fake_news_db"]  # Replace with your database name
-news_collection = db["flagged_news"]  # Collection for fake news
+db = client["fake_news_detection"]  # Replace with your database name
+news_collection = db["live_news"]  # Collection for fake news
 users_collection = db["subscribed_users"]  # Collection for storing user phone numbers
 
 def send_twilio_sms():
