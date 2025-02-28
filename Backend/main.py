@@ -82,7 +82,7 @@ tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 # ========== 🔹 MongoDB Connection ==========
 try:
     client = MongoClient("mongodb://localhost:27017/")
-    db = client["fake_news_db"]
+    db = client["fake_news_detection"]
     feedback_collection = db["feedback"]
     subscriptions_collection = db["subscriptions"]
     logging.info("✅ Connected to MongoDB!")
