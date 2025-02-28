@@ -10,38 +10,22 @@ from pymongo import MongoClient
 import dill
 import os
 import logging
-import gdown  # ✅ Added for Google Drive downloads
 
 # ========== 🔹 Initialize FastAPI and Logging ==========
 app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 
-# ========== 🔹 Model Download from Google Drive ==========
-# 📌 Replace with your actual Google Drive file IDs
-MODEL_DRIVE_ID = "1uN2siOjOkwjEKYr9yAH2bhjdykWqzvTX"
-SHAP_EXPLAINER_DRIVE_ID = "1-4Hd-DXoveFyjz1TQoZ6rX7dKOGny2hm"
-SHAP_VALUES_DRIVE_ID = "1p_UPJLnYCYrPUc-HiPWtRC7G_-fmPZRq"
-
-MODEL_DIR = "Backend/models"
+# ========== 🔹 Model Paths ==========
+MODEL_DIR = "Backend/models"  # ✅ Ensure the correct path for Render
 MODEL_PATH = os.path.join(MODEL_DIR, "bert_lstm_model.pth")
 SHAP_EXPLAINER_PATH = os.path.join(MODEL_DIR, "shap_explainer.pkl")
 SHAP_VALUES_PATH = os.path.join(MODEL_DIR, "shap_values.pkl")
 
-os.makedirs(MODEL_DIR, exist_ok=True)  # Ensure models folder exists
+# ========== 🔹 Load Model ==========
+if not os.path.exists(MODEL_PATH):
+    logging.error("❌ Model file not found! Ensure 'bert_lstm_model.pth' exists in the repository.")
+    raise FileNotFoundError("Model file not found. Check Git LFS upload or path.")
 
-def download_from_drive(file_id, save_path):
-    """Downloads a file from Google Drive if it's missing."""
-    if not os.path.exists(save_path):
-        logging.info(f"📥 Downloading {save_path} from Google Drive...")
-        gdown.download(f"https://drive.google.com/uc?id={file_id}", save_path, quiet=False)
-        logging.info(f"✅ Downloaded {save_path}")
-
-# ✅ Download model files if missing
-download_from_drive(MODEL_DRIVE_ID, MODEL_PATH)
-download_from_drive(SHAP_EXPLAINER_DRIVE_ID, SHAP_EXPLAINER_PATH)
-download_from_drive(SHAP_VALUES_DRIVE_ID, SHAP_VALUES_PATH)
-
-# ========== 🔹 Load Model and Tokenizer ==========
 class BertLSTMClassifier(nn.Module):
     def __init__(self, hidden_size=256, num_layers=1, bidirectional=False, dropout=0.3):
         super(BertLSTMClassifier, self).__init__()
@@ -66,10 +50,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logging.info(f"Using device: {device}")
 
 # ✅ Load Model
-if not os.path.exists(MODEL_PATH):
-    logging.error("❌ Model file not found! Ensure 'bert_lstm_model.pth' is available.")
-    raise FileNotFoundError("Model file not found.")
-
 model = BertLSTMClassifier(hidden_size=256, bidirectional=False).to(device)
 checkpoint = torch.load(MODEL_PATH, map_location=device)
 model.load_state_dict(checkpoint, strict=False)
@@ -80,9 +60,12 @@ logging.info("✅ Model loaded successfully!")
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
 # ========== 🔹 MongoDB Connection ==========
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")  # ✅ Use Render env variable
+DATABASE_NAME = "fake_news_db"
+
 try:
-    client = MongoClient("mongodb://localhost:27017/")
-    db = client["fake_news_detection"]
+    client = MongoClient(MONGO_URI)
+    db = client[DATABASE_NAME]
     feedback_collection = db["feedback"]
     subscriptions_collection = db["subscriptions"]
     logging.info("✅ Connected to MongoDB!")
