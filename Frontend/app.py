@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import matplotlib.pyplot as plt
 
 # ========== 🔹 Configuration ==========
 FASTAPI_URL = "https://fake-news-detection-xqgi.onrender.com"  # Change this if deploying backend
@@ -14,8 +15,16 @@ st.markdown("**Verify news articles, subscribe for alerts, and provide feedback.
 st.header("🔍 Verify News")
 news_text = st.text_area("Enter a news article or statement:", height=150)
 
-# Check News Button
-if st.button("Check News", key="check_news", disabled=not news_text.strip()):
+col1, col2 = st.columns([1, 1])
+with col1:
+    check_news_btn = st.button("Check News", key="check_news", disabled=not news_text.strip())
+with col2:
+    refresh_btn = st.button("🔄 Refresh", key="refresh")
+
+if refresh_btn:
+    st.experimental_rerun()
+
+if check_news_btn:
     with st.spinner("Analyzing... ⏳"):
         try:
             response = requests.post(f"{FASTAPI_URL}/verify-news", json={"text": news_text})
@@ -23,8 +32,23 @@ if st.button("Check News", key="check_news", disabled=not news_text.strip()):
             result = response.json()
 
             st.success(f"🟢 **Result: {result.get('label', 'Unknown')}** (Confidence: {result.get('confidence', 'N/A')})")
-            st.markdown("📊 **Explanation:**")
-            st.json(result.get("explanation", "No explanation available."))
+
+            # Display Explanation Graph
+            if isinstance(result.get("explanation"), dict):  # Ensure explanation is in dict format
+                shap_values = result["explanation"]
+                words = list(shap_values.keys())
+                values = list(shap_values.values())
+
+                fig, ax = plt.subplots(figsize=(8, 4))
+                ax.barh(words, values, color=['green' if v > 0 else 'red' for v in values])
+                ax.set_xlabel("SHAP Value (Impact on Prediction)")
+                ax.set_title("🔎 SHAP Explanation for News Classification")
+                ax.invert_yaxis()  # Invert so highest impact appears at the top
+
+                # Display the plot in Streamlit
+                st.pyplot(fig)
+            else:
+                st.warning("⚠️ SHAP explanation not available for this text.")
         except requests.exceptions.RequestException as e:
             st.error(f"❌ API error: {e}")
         except Exception as e:
