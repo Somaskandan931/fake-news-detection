@@ -3,7 +3,7 @@ import requests
 import matplotlib.pyplot as plt
 
 # ========== 🔹 Configuration ==========
-FASTAPI_URL = "https://fake-news-detection-xqgi.onrender.com"  # Change this if deploying backend
+FASTAPI_URL = "https://fake-news-detection-tjo8.onrender.com"  # Change this if deploying backend
 
 # ========== 🔹 Streamlit UI ==========
 st.set_page_config(page_title="Fake News Detection", page_icon="📰", layout="centered")
