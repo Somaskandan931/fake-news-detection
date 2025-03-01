@@ -1,6 +1,5 @@
 Backend/models/*.pth filter=lfs diff=lfs merge=lfs -text
 Backend/models/*.pkl filter=lfs diff=lfs merge=lfs -text
-Backend/models/bert_lstm_model.pth filter=lfs diff=lfs merge=lfs -text
 Backend/models/shap_explainer.pkl filter=lfs diff=lfs merge=lfs -text
 Backend/models/shap_values.pkl filter=lfs diff=lfs merge=lfs -text
 *.pth filter=lfs diff=lfs merge=lfs -text
