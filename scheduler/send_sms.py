@@ -3,9 +3,9 @@ from pymongo import MongoClient
 import os
 
 # Load Twilio credentials from environment variables
-TWILIO_SID = os.getenv("-")
-TWILIO_AUTH_TOKEN = os.getenv("-")
-TWILIO_PHONE_NUMBER = os.getenv("-")
+TWILIO_SID = os.getenv("your sid here")
+TWILIO_AUTH_TOKEN = os.getenv("your auth token here")
+TWILIO_PHONE_NUMBER = os.getenv("your twilio phone number here")
 
 # MongoDB connection
 MONGO_URI = "mongodb://localhost:27017/"
