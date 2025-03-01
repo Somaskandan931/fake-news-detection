@@ -14,10 +14,10 @@ import gdown  # ✅ Added for Google Drive downloads
 
 # ========== 🔹 Initialize FastAPI and Logging ==========
 app = FastAPI()
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # ========== 🔹 Model Paths ==========
-MODEL_DIR = "Backend/models"  # ✅ Ensure the correct path
+MODEL_DIR = "Backend/models"
 MODEL_PATH = os.path.join(MODEL_DIR, "bert_lstm_model.pth")
 SHAP_EXPLAINER_PATH = os.path.join(MODEL_DIR, "shap_explainer.pkl")
 SHAP_VALUES_PATH = os.path.join(MODEL_DIR, "shap_values.pkl")
@@ -27,11 +27,10 @@ MODEL_DRIVE_ID = "1uN2siOjOkwjEKYr9yAH2bhjdykWqzvTX"
 SHAP_EXPLAINER_DRIVE_ID = "1-4Hd-DXoveFyjz1TQoZ6rX7dKOGny2hm"
 SHAP_VALUES_DRIVE_ID = "1p_UPJLnYCYrPUc-HiPWtRC7G_-fmPZRq"
 
-os.makedirs(MODEL_DIR, exist_ok=True)  # ✅ Ensure models folder exists
+os.makedirs(MODEL_DIR, exist_ok=True)
 
 # ✅ Function to Download from Google Drive
 def download_from_drive(file_id, save_path):
-    """Downloads a file from Google Drive if it's missing."""
     if not os.path.exists(save_path):
         logging.info(f"📥 Downloading {save_path} from Google Drive...")
         gdown.download(f"https://drive.google.com/uc?id={file_id}", save_path, quiet=False)
@@ -47,8 +46,7 @@ class BertLSTMClassifier(nn.Module):
     def __init__(self, hidden_size=256, num_layers=1, bidirectional=False, dropout=0.3):
         super(BertLSTMClassifier, self).__init__()
         self.bert = BertModel.from_pretrained("bert-base-uncased")
-        self.lstm = nn.LSTM(input_size=768, hidden_size=hidden_size,
-                            num_layers=num_layers, bidirectional=bidirectional, batch_first=True)
+        self.lstm = nn.LSTM(768, hidden_size, num_layers, bidirectional, batch_first=True)
         lstm_output_size = hidden_size * (2 if bidirectional else 1)
         self.fc = nn.Linear(lstm_output_size, 1)
         self.dropout = nn.Dropout(dropout)
@@ -63,11 +61,11 @@ class BertLSTMClassifier(nn.Module):
         output = self.fc(output)
         return self.sigmoid(output)
 
+# ✅ Load Model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logging.info(f"Using device: {device}")
 
-# ✅ Load Model
-model = BertLSTMClassifier(hidden_size=256, bidirectional=False).to(device)
+model = BertLSTMClassifier().to(device)
 checkpoint = torch.load(MODEL_PATH, map_location=device)
 model.load_state_dict(checkpoint, strict=False)
 model.eval()
@@ -77,7 +75,7 @@ logging.info("✅ Model loaded successfully!")
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
 # ========== 🔹 MongoDB Connection ==========
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")  # ✅ Use Render env variable
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 DATABASE_NAME = "fake_news_db"
 
 try:
@@ -114,7 +112,7 @@ class NewsRequest(BaseModel):
 @app.post("/verify-news")
 def verify_news(request: NewsRequest):
     try:
-        inputs = tokenizer(request.text, padding=True, truncation=True, return_tensors="pt", max_length=256)
+        inputs = tokenizer(request.text, return_tensors="pt", truncation=True, padding=True, max_length=256)
         inputs = {key: value.to(device) for key, value in inputs.items()}
 
         with torch.no_grad():
