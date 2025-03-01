@@ -1,10 +1,10 @@
 from twilio.rest import Client
 
 # Twilio credentials (replace these with your actual values)
-TWILIO_ACCOUNT_SID = "ACff2a6eafe96c4ed11edebdc9d485bc51"
-TWILIO_AUTH_TOKEN = "ea13afdab903ef5d98e064199009af6c"
-TWILIO_PHONE_NUMBER = "+18576666048"
-RECIPIENT_PHONE_NUMBER = "+917200288242"
+TWILIO_ACCOUNT_SID = "-"
+TWILIO_AUTH_TOKEN = "-"
+TWILIO_PHONE_NUMBER = "-"
+RECIPIENT_PHONE_NUMBER = "-"
 
 
 def send_test_sms () :
