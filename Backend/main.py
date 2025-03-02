@@ -68,23 +68,19 @@ except Exception as e :
     logging.error( f"❌ Error loading model: {e}" )
     raise RuntimeError( "Failed to initialize model." )
 
+# ========== 🔹 Load SHAP Explainer Once ==========
+try :
+    SHAP_EXPLAINER_PATH = hf_hub_download( "Samaskandan/fake_news_detection", "shap_explainer.pkl" )
+    SHAP_VALUES_PATH = hf_hub_download( "Samaskandan/fake_news_detection", "shap_values.pkl" )
 
-# ========== 🔹 Lazy Load SHAP Explainer ==========
-def load_shap_explainer () :
-    try :
-        SHAP_EXPLAINER_PATH = hf_hub_download( "Samaskandan/fake_news_detection", "shap_explainer.pkl" )
-        SHAP_VALUES_PATH = hf_hub_download( "Samaskandan/fake_news_detection", "shap_values.pkl" )
-
-        with open( SHAP_EXPLAINER_PATH, "rb" ) as explainer_file :
-            shap_explainer = pickle.load( explainer_file )
-        with open( SHAP_VALUES_PATH, "rb" ) as shap_file :
-            shap_values = pickle.load( shap_file )
-        logging.info( "✅ SHAP explainer and values loaded successfully!" )
-        return shap_explainer, shap_values
-    except Exception as e :
-        logging.error( f"❌ Error loading SHAP explainer: {e}" )
-        raise RuntimeError( "Failed to load SHAP explainer." )
-
+    with open( SHAP_EXPLAINER_PATH, "rb" ) as explainer_file :
+        shap_explainer = pickle.load( explainer_file )
+    with open( SHAP_VALUES_PATH, "rb" ) as shap_file :
+        shap_values = pickle.load( shap_file )
+    logging.info( "✅ SHAP explainer and values loaded successfully!" )
+except Exception as e :
+    logging.error( f"❌ Error loading SHAP explainer: {e}" )
+    raise RuntimeError( "Failed to load SHAP explainer." )
 
 # ========== 🔹 MongoDB Connection ==========
 try :
@@ -117,9 +113,10 @@ def verify_news ( request: NewsRequest ) :
         label = "Real" if prediction >= 0.5 else "Fake"
         confidence = round( prediction, 2 )
 
-        # Lazy Load SHAP Explainability
-        shap_explainer, _ = load_shap_explainer()
         explanation = shap_explainer.shap_values( [request.text] )
+
+        del inputs, outputs  # Free memory
+        torch.cuda.empty_cache()
 
         return {"label" : label, "confidence" : confidence, "explanation" : explanation.tolist()}
     except Exception as e :
