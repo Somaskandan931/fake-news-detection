@@ -35,7 +35,7 @@ device = torch.device( "cuda" if torch.cuda.is_available() else "cpu" )
 logging.info( f"✅ Using device: {device}" )
 
 try :
-    MODEL_PATH = hf_hub_download( "Samaskandan/fake_news_detection", "bert_lstm_model_quantized.pth" )
+    MODEL_PATH = hf_hub_download( "Samaskandan/fake_news_detection", "new_bert_lstm_model_quantized.pth" )
 except Exception as e :
     logging.error( f"❌ Failed to download model: {e}" )
     raise RuntimeError( "Failed to load model from Hugging Face." )
