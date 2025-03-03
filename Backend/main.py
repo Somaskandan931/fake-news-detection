@@ -10,7 +10,10 @@ import pickle
 from pymongo import MongoClient
 import logging
 import os
+import gc
 from huggingface_hub import hf_hub_download, login
+from transformers import AutoModelForSequenceClassification
+import bitsandbytes as bnb  # 8-bit quantization
 
 torch.cuda.empty_cache()
 
@@ -40,12 +43,16 @@ except Exception as e:
     logging.error(f"❌ Failed to download model: {e}")
     raise RuntimeError("Failed to load model from Hugging Face.")
 
-
-# Define BERT-LSTM model
+# Define BERT-LSTM model with 8-bit quantization
 class BertLSTM(nn.Module):
     def __init__(self, hidden_dim=256, num_classes=1):
         super(BertLSTM, self).__init__()
-        self.bert = BertModel.from_pretrained("bert-base-uncased")
+        self.bert = AutoModelForSequenceClassification.from_pretrained(
+            "bert-base-uncased",
+            torch_dtype=torch.float16,  # Load in 16-bit precision
+            load_in_8bit=True,  # Quantize to 8-bit
+            device_map="auto"  # Automatically assign to GPU/CPU
+        )
         self.lstm = nn.LSTM(input_size=768, hidden_size=hidden_dim, batch_first=True, bidirectional=True)
         self.fc = nn.Linear(hidden_dim * 2, num_classes)
 
@@ -55,7 +62,6 @@ class BertLSTM(nn.Module):
         lstm_output, _ = self.lstm(bert_output)
         output = self.fc(lstm_output[:, -1, :])
         return output
-
 
 # Load tokenizer and model
 try:
@@ -68,7 +74,7 @@ except Exception as e:
     logging.error(f"❌ Error loading model: {e}")
     raise RuntimeError("Failed to initialize model.")
 
-# ========== 🔹 Load SHAP Explainer Once ==========
+# ========== 🔹 Load SHAP Explainer in CPU ==========
 try:
     SHAP_EXPLAINER_PATH = hf_hub_download("Samaskandan/fake_news_detection", "shap_explainer.pkl")
     SHAP_VALUES_PATH = hf_hub_download("Samaskandan/fake_news_detection", "shap_values.pkl")
@@ -77,7 +83,10 @@ try:
         shap_explainer = pickle.load(explainer_file)
     with open(SHAP_VALUES_PATH, "rb") as shap_file:
         shap_values = pickle.load(shap_file)
-    logging.info("✅ SHAP explainer and values loaded successfully!")
+
+    # Move SHAP computations to CPU
+    shap_explainer.model = shap_explainer.model.to("cpu")
+    logging.info("✅ SHAP explainer loaded on CPU successfully!")
 except Exception as e:
     logging.error(f"❌ Error loading SHAP explainer: {e}")
     raise RuntimeError("Failed to load SHAP explainer.")
@@ -93,11 +102,9 @@ except Exception as e:
     logging.error(f"❌ MongoDB connection failed: {e}")
     raise RuntimeError("MongoDB connection failed.")
 
-
 # ========== 🔹 API Endpoints ==========
 class NewsRequest(BaseModel):
     text: str
-
 
 @app.post("/verify-news")
 def verify_news(request: NewsRequest):
@@ -113,40 +120,18 @@ def verify_news(request: NewsRequest):
         label = "Real" if prediction >= 0.5 else "Fake"
         confidence = round(prediction, 2)
 
-        explanation = shap_explainer.shap_values([request.text])
+        # Move SHAP computation to CPU
+        explanation = shap_explainer.shap_values([request.text], nsamples=100)
 
-        del inputs, outputs  # Free memory
+        # Free memory after request
+        del inputs, outputs
         torch.cuda.empty_cache()
+        gc.collect()
 
         return {"label": label, "confidence": confidence, "explanation": explanation.tolist()}
     except Exception as e:
         logging.error(f"❌ Error in /verify-news: {e}")
         raise HTTPException(status_code=500, detail=f"Error verifying news: {str(e)}")
-
-
-@app.post("/subscribe")
-def subscribe(phone_number: str = Form(...)):
-    """Subscribe a user to SMS alerts."""
-    try:
-        if subscriptions_collection.find_one({"phone_number": phone_number}):
-            raise HTTPException(status_code=400, detail="Already subscribed.")
-        subscriptions_collection.insert_one({"phone_number": phone_number})
-        return {"message": "Successfully subscribed!"}
-    except Exception as e:
-        logging.error(f"❌ Error in /subscribe: {e}")
-        raise HTTPException(status_code=500, detail=f"Error subscribing: {str(e)}")
-
-
-@app.post("/feedback")
-def submit_feedback(news_text: str = Form(...), feedback: str = Form(...)):
-    """Submit feedback on news classification."""
-    try:
-        feedback_collection.insert_one({"news_text": news_text, "feedback": feedback})
-        return {"message": "Feedback submitted!"}
-    except Exception as e:
-        logging.error(f"❌ Error in /feedback: {e}")
-        raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
-
 
 # ========== 🔹 Run FastAPI App ==========
 if __name__ == "__main__":
