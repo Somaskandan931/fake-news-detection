@@ -93,7 +93,7 @@ mccabe
 mistune
 mkl-fft
 mkl-random
-mkl-service==2.4.0
+mkl-service==2.4.2  # Adjusted to latest compatible version
 ml-dtypes
 more-itertools
 mpmath
@@ -212,4 +212,3 @@ yapf
 yarl
 zipp
 zope.interface
-zstandard
