@@ -108,7 +108,7 @@ nbformat
 nest-asyncio
 networkx
 newsapi-python==0.2.7
-nltk==3.9.1
+nltk==3.2.4
 notebook
 numpy
 numpydoc
