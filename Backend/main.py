@@ -13,12 +13,16 @@ import gc
 from huggingface_hub import hf_hub_download, login
 from dotenv import load_dotenv
 
-# ========== Load Environment Variables from .env ==========
+# ========== Load Environment Variables from .env (Render) ==========
 load_dotenv()
 HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+MONGO_URI = os.getenv("MONGO_URI")
 PORT = int(os.getenv("PORT", 10000))  # Default port 10000 if not specified
-DATABASE_NAME = "fake_news_detection"
+DATABASE_NAME = os.getenv("DATABASE_NAME", "fake_news_detection")
+
+# Ensure essential environment variables exist
+if not HUGGINGFACE_TOKEN or not MONGO_URI:
+    raise RuntimeError("❌ Missing required environment variables! Check your .env file on Render.")
 
 # Empty CUDA cache
 torch.cuda.empty_cache()
@@ -28,11 +32,8 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Authenticate Hugging Face API
-if HUGGINGFACE_TOKEN:
-    login(token=HUGGINGFACE_TOKEN)
-    logging.info("✅ Hugging Face authentication successful.")
-else:
-    logging.warning("⚠️ Hugging Face token not found.")
+login(token=HUGGINGFACE_TOKEN)
+logging.info("✅ Hugging Face authentication successful.")
 
 # ========== Load Model from Hugging Face Hub ==========
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -58,44 +59,30 @@ class BertLSTM(nn.Module):
         lstm_output, _ = self.lstm(bert_output.unsqueeze(1))
         return self.fc(lstm_output[:, -1, :])
 
-# Load Model & Tokenizer with Exception Handling
-try:
-    model = BertLSTM().to(device)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
-    model.eval()
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-    logging.info("✅ Model loaded successfully!")
-except UnicodeDecodeError:
-    logging.error("❌ Model file encoding error! Try re-downloading the model.")
-    raise RuntimeError("Model file corrupted. Please re-download.")
-except Exception as e:
-    logging.error(f"❌ Error loading model: {e}")
-    raise RuntimeError("Failed to initialize model.")
+# Load Model & Tokenizer
+model = BertLSTM().to(device)
+model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+model.eval()
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+logging.info("✅ Model loaded successfully!")
 
-# ========== Load SHAP Explainer in CPU ==========
+# ========== Load SHAP Explainer ==========
 try:
     SHAP_EXPLAINER_PATH = hf_hub_download("Samaskandan/fake_news_detection", "shap_explainer.pkl")
     with open(SHAP_EXPLAINER_PATH, "rb") as explainer_file:
-        shap_explainer = pickle.load(explainer_file, encoding="latin1")  # Fix UnicodeDecodeError
+        shap_explainer = pickle.load(explainer_file, encoding="latin1")
     shap_explainer.model = shap_explainer.model.to("cpu")
     logging.info("✅ SHAP explainer loaded successfully!")
-except UnicodeDecodeError:
-    logging.error("❌ SHAP file encoding error! Try re-downloading.")
-    shap_explainer = None
 except Exception as e:
     logging.error(f"❌ Error loading SHAP explainer: {e}")
-    shap_explainer = None  # Avoid crashes if SHAP fails
+    shap_explainer = None
 
 # ========== MongoDB Connection ==========
-try:
-    client = MongoClient(MONGO_URI)
-    db = client[DATABASE_NAME]
-    feedback_collection = db["feedback"]
-    subscriptions_collection = db["subscriptions"]
-    logging.info("✅ Connected to MongoDB!")
-except Exception as e:
-    logging.error(f"❌ MongoDB connection failed: {e}")
-    raise RuntimeError("MongoDB connection failed.")
+client = MongoClient(MONGO_URI)
+db = client[DATABASE_NAME]
+feedback_collection = db["feedback"]
+subscriptions_collection = db["subscriptions"]
+logging.info("✅ Connected to MongoDB!")
 
 # ========== API Endpoints ==========
 class NewsRequest(BaseModel):
@@ -103,7 +90,7 @@ class NewsRequest(BaseModel):
 
 @app.post("/verify-news")
 def verify_news(request: NewsRequest):
-    """Verify news text and return the classification result with SHAP explanation."""
+    """Verify news text and return classification result with SHAP explanation."""
     try:
         inputs = tokenizer(request.text, return_tensors="pt", truncation=True, padding=True, max_length=256)
         inputs = {key: value.to(device) for key, value in inputs.items()}
@@ -115,12 +102,10 @@ def verify_news(request: NewsRequest):
         label = "Real" if prediction >= 0.5 else "Fake"
         confidence = round(prediction, 2)
 
-        # Compute SHAP Explanation (if available)
         explanation = None
         if shap_explainer:
             explanation = shap_explainer.shap_values([request.text], nsamples=100)
 
-        # Free memory
         del inputs, outputs
         torch.cuda.empty_cache()
         gc.collect()
