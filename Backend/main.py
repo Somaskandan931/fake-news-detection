@@ -154,6 +154,8 @@ def submit_feedback ( news_text: str = Form( ... ), feedback: str = Form( ... ) 
 
 
 # ========== Run FastAPI App ==========
-if __name__ == "__main__" :
-    logging.info( f"🚀 Starting FastAPI server on port {PORT}..." )
-    uvicorn.run( "main:app", host="0.0.0.0", port=PORT, log_level="info" )
+if __name__ == "__main__":
+    import uvicorn
+    PORT = int(os.getenv("PORT", 10000))  # Ensure a valid port is retrieved
+    logging.info(f"🚀 Starting FastAPI server on port {PORT}...")
+    uvicorn.run("main:app", host="0.0.0.0", port=PORT, log_level="info")
