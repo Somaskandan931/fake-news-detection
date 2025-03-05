@@ -73,7 +73,7 @@ logging.info( "✅ Model loaded successfully!" )
 try :
     SHAP_EXPLAINER_PATH = hf_hub_download( "Samaskandan/fake_news_detection", "shap_explainer_reduced.pkl",
                                            force_download=True )
-    SHAP_VALUES_PATH = hf_hub_download( "Samaskandan/fake_news_detection", "shap_values.pkl", force_download=True )
+    SHAP_VALUES_PATH = hf_hub_download( "Samaskandan/fake_news_detection", "shap_values_compressed.pbz2", force_download=True )
 
     with open( SHAP_EXPLAINER_PATH, "rb" ) as explainer_file :
         shap_explainer = pickle.load( explainer_file, errors="ignore" )
